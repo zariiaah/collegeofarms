@@ -1,82 +1,28 @@
-const { exec, fork } = require("child_process");
-const ex = require('util').promisify(exec);
 const express = require('express');
 const app = express();
-const path = require('path')
-const history = require('connect-history-api-fallback');
-require('dotenv').config({ path: './backend/.env' });
-const inquirer = require('inquirer');
-const ora = require('ora');
-const envfile = require('envfile');
-const staticFileMiddleware = express.static(path.join(__dirname, 'dist'));
-const fs = require('fs');
-const spinner = ora({ text: 'Building app..', spinner: 'dots', color: 'red' })
+const path = require('path');
+const mongoose = require('mongoose');
+require('dotenv').config();
 
+const PORT = process.env.PORT || 8080;
+const MONGO_URI = process.env.MONGO_URI;
 
+mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("Mongo connected"))
+  .catch(err => console.error("Mongo error", err));
 
-if (!process.env.MONGO_URI) {
-    inquirer.prompt([
-        {
-            type: 'input',
-            name: 'MongoDB',
-            message: 'Please provide a mongodb link (learn more @ https://tovy.gitbook.io/tovy/hosting/creating-a-mongodb-database)',
-            validatingText: 'Checking URI',
-            validate: async (answer) => {
-                if (!answer.includes('mongodb+srv://') && !answer.includes('mongodb://')) return 'Please enter a valid mongodb srv URI '
-                return true
-            },
-        },
-        {
-            type: 'input',
-            name: 'port',
-            message: 'If you would like to run tovy on a custom port please enter that port below!',
-            default: 8080
-        }
-    ]).then(answers => {
-        const envobj = {
-            MONGO_URI: answers.MongoDB,
-            PORT: answers.port || 8080
-        }
-        fs.writeFile('./backend/.env', envfile.stringify(envobj), (err) => {
-            if (err) throw err;
-            console.log('The file has been saved!');
-            runBuild();
-        })
-    })
-} else {
-    runBuild();
-}
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'dist')));
 
+// Example API route
+app.post('/api/ticket', (req, res) => {
+  // handle ticket creation here
+  res.json({ success: true });
+});
 
+// All other routes serve the frontend
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 
-function runBuild() {
-    spinner.start();
-
-    let chield = ex('npm run build').then(async (result) => {
-        setTimeout(() => {
-            startbackend();
-        }, 1000)
-        spinner.stop();
-        console.log(` 
-████████╗░█████╗░██╗░░░██╗██╗░░░██╗
-╚══██╔══╝██╔══██╗██║░░░██║╚██╗░██╔╝
-░░░██║░░░██║░░██║╚██╗░██╔╝░╚████╔╝░
-░░░██║░░░██║░░██║░╚████╔╝░░░╚██╔╝░░
-░░░██║░░░╚█████╔╝░░╚██╔╝░░░░░██║░░░
-░░░╚═╝░░░░╚════╝░░░░╚═╝░░░░░░╚═╝░░░`)
-        console.log(`Tovy has been successfully built`)
-    });
-
-}
-
-function startbackend() {
-    const child = fork('./backend/index.js', []);
-    child.on('error', message => {
-        console.log('message from child:', message);
-    });
-    child.on('close',(code) => {
-        console.log(`child process exited with ${code}`);
-        startbackend();
-    })
-}
-
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
