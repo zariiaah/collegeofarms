@@ -553,8 +553,10 @@ process.on('uncaughtException', function(e) {
         process.exit(1);
     }
     console.log(e);
-})
+});
 
+const port = process.env.PORT || process.env.port || 8080;
 
-console.log('running on http://localhost:' + process.env.PORT || process.env.port || 8080);
-app.listen(process.env.PORT || process.env.port || 8080)
+app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ Server running and listening on http://0.0.0.0:${port}`);
+});
